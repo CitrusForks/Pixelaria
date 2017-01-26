@@ -250,7 +250,7 @@ namespace Pixelaria.Views.Controls.LayerControls
             _ignoreLayerStatusEvents = false;
 
             // Call the notification event
-            LayerStatusesUpdated?.Invoke(this, new EventArgs());
+            LayerStatusesUpdated?.Invoke(this, EventArgs.Empty);
         }
 
         /// <summary>
@@ -269,7 +269,7 @@ namespace Pixelaria.Views.Controls.LayerControls
             _ignoreLayerStatusEvents = false;
 
             // Call the notification event
-            LayerStatusesUpdated?.Invoke(this, new EventArgs());
+            LayerStatusesUpdated?.Invoke(this, EventArgs.Empty);
         }
 
         /// <summary>
@@ -519,7 +519,7 @@ namespace Pixelaria.Views.Controls.LayerControls
             if (_ignoreLayerStatusEvents)
                 return;
 
-            LayerStatusesUpdated?.Invoke(this, new EventArgs());
+            LayerStatusesUpdated?.Invoke(this, EventArgs.Empty);
         }
         // 
         // Duplicate Layer layer control button click

@@ -44,11 +44,6 @@ namespace Pixelaria.Views.ModelViews
     public partial class AnimationSheetView : ModifiableContentView
     {
         /// <summary>
-        /// The current AnimationSheet being edited
-        /// </summary>
-        readonly AnimationSheet _sheetToEdit;
-
-        /// <summary>
         /// The controller that owns this form
         /// </summary>
         readonly Controller _controller;
@@ -64,6 +59,11 @@ namespace Pixelaria.Views.ModelViews
         BundleSheetExport _bundleSheetExport;
 
         /// <summary>
+        /// Whether the current sheet export was generated with data from animations that where unsaved at the time
+        /// </summary>
+        private bool _generatedWhileUnsaved;
+
+        /// <summary>
         /// Cancellation token for the sheet generation routine
         /// </summary>
         private CancellationTokenSource _sheetCancellation;
@@ -71,7 +71,7 @@ namespace Pixelaria.Views.ModelViews
         /// <summary>
         /// Gets the current AnimationSheet being edited
         /// </summary>
-        public AnimationSheet CurrentSheet => _sheetToEdit;
+        public AnimationSheet CurrentSheet { get; }
 
         /// <summary>
         /// Initializes a new instance of the AnimationSheetEditor class
@@ -85,13 +85,38 @@ namespace Pixelaria.Views.ModelViews
             zpb_sheetPreview.HookToControl(this);
 
             _controller = controller;
-            _sheetToEdit = sheetToEdit;
+            CurrentSheet = sheetToEdit;
 
             if (sheetToEdit != null)
                 _exportSettings = sheetToEdit.ExportSettings;
 
             InitializeFiends();
             ValidateFields();
+            
+            if(sheetToEdit != null)
+            {
+                // TODO: Better abstract and decouple these references to AnimationView, which are, as of now, a hack.
+
+                // Setup events
+                controller.ViewModifiedChanged += (sender, args) =>
+                {
+                    UpdateUnsavedAnimationsIconState();
+                };
+
+                controller.ViewOpenedClosed += (sender, args) =>
+                {
+                    // Erase current bundle sheet export, in case the animation closed was previously from this view
+                    // This is a work-around 
+                    var animView = sender as AnimationView;
+                    if (animView != null && _controller.GetOwningAnimationSheet(animView.CurrentAnimation).ID == CurrentSheet.ID && _generatedWhileUnsaved)
+                    {
+                        zpb_sheetPreview.SheetExport = null;
+                        _bundleSheetExport = null;
+                    }
+
+                    UpdateUnsavedAnimationsIconState();
+                };
+            }
         }
 
         /// <summary>
@@ -100,7 +125,7 @@ namespace Pixelaria.Views.ModelViews
         public void InitializeFiends()
         {
             // If no sheet is present, disable sheet preview
-            if (_sheetToEdit == null)
+            if (CurrentSheet == null)
             {
                 btn_generatePreview.Visible = false;
                 lbl_sheetPreview.Visible = false;
@@ -123,25 +148,25 @@ namespace Pixelaria.Views.ModelViews
                 return;
             }
 
-            txt_sheetName.Text = _sheetToEdit.Name;
+            txt_sheetName.Text = CurrentSheet.Name;
 
-            cb_favorRatioOverArea.Checked = _sheetToEdit.ExportSettings.FavorRatioOverArea;
-            cb_forcePowerOfTwoDimensions.Checked = _sheetToEdit.ExportSettings.ForcePowerOfTwoDimensions;
-            cb_forceMinimumDimensions.Checked = _sheetToEdit.ExportSettings.ForceMinimumDimensions;
-            cb_reuseIdenticalFrames.Checked = _sheetToEdit.ExportSettings.ReuseIdenticalFramesArea;
-            cb_highPrecision.Checked = _sheetToEdit.ExportSettings.HighPrecisionAreaMatching;
-            cb_allowUordering.Checked = _sheetToEdit.ExportSettings.AllowUnorderedFrames;
-            cb_useUniformGrid.Checked = _sheetToEdit.ExportSettings.UseUniformGrid;
-            cb_padFramesOnJson.Checked = _sheetToEdit.ExportSettings.UsePaddingOnJson;
-            cb_exportJson.Checked = _sheetToEdit.ExportSettings.ExportJson;
-            nud_xPadding.Value = _sheetToEdit.ExportSettings.XPadding;
-            nud_yPadding.Value = _sheetToEdit.ExportSettings.YPadding;
+            cb_favorRatioOverArea.Checked = CurrentSheet.ExportSettings.FavorRatioOverArea;
+            cb_forcePowerOfTwoDimensions.Checked = CurrentSheet.ExportSettings.ForcePowerOfTwoDimensions;
+            cb_forceMinimumDimensions.Checked = CurrentSheet.ExportSettings.ForceMinimumDimensions;
+            cb_reuseIdenticalFrames.Checked = CurrentSheet.ExportSettings.ReuseIdenticalFramesArea;
+            cb_highPrecision.Checked = CurrentSheet.ExportSettings.HighPrecisionAreaMatching;
+            cb_allowUordering.Checked = CurrentSheet.ExportSettings.AllowUnorderedFrames;
+            cb_useUniformGrid.Checked = CurrentSheet.ExportSettings.UseUniformGrid;
+            cb_padFramesOnJson.Checked = CurrentSheet.ExportSettings.UsePaddingOnJson;
+            cb_exportJson.Checked = CurrentSheet.ExportSettings.ExportJson;
+            nud_xPadding.Value = CurrentSheet.ExportSettings.XPadding;
+            nud_yPadding.Value = CurrentSheet.ExportSettings.YPadding;
 
             zpb_sheetPreview.MaximumZoom = new PointF(100, 100);
 
             modified = false;
 
-            Text = AnimationMessages.TextAnimationSheet + @" [" + _sheetToEdit.Name + @"]";
+            Text = AnimationMessages.TextAnimationSheet + @" [" + CurrentSheet.Name + @"]";
 
             UpdateCountLabels();
         }
@@ -151,8 +176,8 @@ namespace Pixelaria.Views.ModelViews
         /// </summary>
         public void UpdateCountLabels()
         {
-            lbl_animCount.Text = _sheetToEdit.AnimationCount + "";
-            lbl_frameCount.Text = _sheetToEdit.GetFrameCount() + "";
+            lbl_animCount.Text = CurrentSheet.AnimationCount + "";
+            lbl_frameCount.Text = CurrentSheet.GetFrameCount() + "";
         }
 
         /// <summary>
@@ -165,7 +190,7 @@ namespace Pixelaria.Views.ModelViews
             const bool alert = false;
 
             // Animation name
-            var validation = _controller.AnimationSheetValidator.ValidateAnimationSheetName(txt_sheetName.Text, _sheetToEdit);
+            var validation = _controller.AnimationSheetValidator.ValidateAnimationSheetName(txt_sheetName.Text, CurrentSheet);
             if (validation != "")
             {
                 txt_sheetName.BackColor = Color.LightPink;
@@ -181,7 +206,7 @@ namespace Pixelaria.Views.ModelViews
             pnl_alertPanel.Visible = alert;
 
             btn_ok.Enabled = valid;
-            btn_apply.Enabled = (valid && modified && _sheetToEdit != null);
+            btn_apply.Enabled = (valid && Modified && CurrentSheet != null);
 
             return valid;
         }
@@ -194,12 +219,12 @@ namespace Pixelaria.Views.ModelViews
             if(!ValidateFields())
                 return;
 
-            _sheetToEdit.Name = txt_sheetName.Text;
-            _sheetToEdit.ExportSettings = RepopulateExportSettings();
+            CurrentSheet.Name = txt_sheetName.Text;
+            CurrentSheet.ExportSettings = RepopulateExportSettings();
 
-            _controller.UpdatedAnimationSheet(_sheetToEdit);
+            _controller.UpdatedAnimationSheet(CurrentSheet);
 
-            Text = AnimationMessages.TextAnimationSheet + @" [" + _sheetToEdit.Name + @"]";
+            Text = AnimationMessages.TextAnimationSheet + @" [" + CurrentSheet.Name + @"]";
             btn_apply.Enabled = false;
 
             base.ApplyChanges();
@@ -212,7 +237,7 @@ namespace Pixelaria.Views.ModelViews
         /// <returns>The DialogResult of the confirmation MessageBox displayed to the user</returns>
         public override DialogResult ConfirmChanges()
         {
-            if (_sheetToEdit != null)
+            if (CurrentSheet != null)
             {
                 return base.ConfirmChanges();
             }
@@ -225,9 +250,9 @@ namespace Pixelaria.Views.ModelViews
         /// </summary>
         public override void MarkModified()
         {
-            if (_sheetToEdit != null)
+            if (CurrentSheet != null)
             {
-                Text = AnimationMessages.TextAnimationSheet + @" [" + _sheetToEdit.Name + @"]*";
+                Text = AnimationMessages.TextAnimationSheet + @" [" + CurrentSheet.Name + @"]*";
                 btn_apply.Enabled = true;
             }
 
@@ -254,16 +279,35 @@ namespace Pixelaria.Views.ModelViews
 
             return _exportSettings;
         }
+        
+        /// <summary>
+        /// Updates state of unsaved animations icon
+        /// </summary>
+        private void UpdateUnsavedAnimationsIconState()
+        {
+            // Turn warn icon on if any animation from this sheet has unsaved changes
+            pb_unsavedAnimWarning.Visible = HasUnsavedAnimations();
+        }
+
+        /// <summary>
+        /// Returns whether any of the animations on this sheet is currently opened, with unsaved changes associated with them
+        /// </summary>
+        private bool HasUnsavedAnimations()
+        {
+            return CurrentSheet.Animations.Any(_controller.InterfaceStateProvider.HasUnsavedChangesForAnimation);
+        }
 
         /// <summary>
         /// Generates a preview for the AnimationSheet currently loaded into this form
         /// </summary>
         public void GeneratePreview()
         {
+            _generatedWhileUnsaved = HasUnsavedAnimations();
+
             RepopulateExportSettings();
             UpdateCountLabels();
 
-            if (_sheetToEdit.Animations.Length <= 0)
+            if (CurrentSheet.Animations.Length <= 0)
             {
                 lbl_alertLabel.Text = AnimationMessages.TextNoAnimationInSheetToGeneratePreview;
                 pnl_alertPanel.Visible = true;
@@ -291,8 +335,11 @@ namespace Pixelaria.Views.ModelViews
 
             _sheetCancellation = new CancellationTokenSource();
 
+            // Get a dynamic provider for better accuracy of animations to export
+            var provider = _controller.GetDynamicProviderForSheet(CurrentSheet, _exportSettings);
+
             // Export the bundle
-            var t = _controller.GenerateBundleSheet(_exportSettings, _sheetCancellation.Token, handler, _sheetToEdit.Animations);
+            var t = _controller.GenerateBundleSheet(provider, _sheetCancellation.Token, handler);
 
             t.ContinueWith(task =>
             {
@@ -435,6 +482,11 @@ namespace Pixelaria.Views.ModelViews
                     select
                         new Tuple<Animation, List<IFrame>>(animation, list)
                 ).ToList();
+
+            // TODO: This is a work-around for removing frames from an animation without updating the preview, leading to a
+            // dangling frame that is still 'clickeable' on the sheet preview.
+            if (framesPerAnimation.Count == 0)
+                return;
 
             var menu = new ContextMenuStrip();
             
@@ -591,7 +643,7 @@ namespace Pixelaria.Views.ModelViews
                 return;
             }
 
-            if (_sheetToEdit != null && modified)
+            if (CurrentSheet != null && Modified)
             {
                 ApplyChanges();
             }

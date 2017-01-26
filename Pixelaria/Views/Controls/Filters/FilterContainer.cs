@@ -266,7 +266,7 @@ namespace Pixelaria.Views.Controls.Filters
 
             if (_mouseDown && _mouseDownPoint.Distance(e.Location) > 5 && !_dragging)
             {
-                ContainerDragStart?.Invoke(this, new EventArgs());
+                ContainerDragStart?.Invoke(this, EventArgs.Empty);
 
                 _dragging = true;
             }
@@ -281,7 +281,7 @@ namespace Pixelaria.Views.Controls.Filters
 
             if (_dragging)
             {
-                ContainerDragEnd?.Invoke(this, new EventArgs());
+                ContainerDragEnd?.Invoke(this, EventArgs.Empty);
             }
 
             _mouseDown = false;

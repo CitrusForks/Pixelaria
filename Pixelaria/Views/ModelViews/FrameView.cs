@@ -312,7 +312,7 @@ namespace Pixelaria.Views.ModelViews
         /// </summary>
         public override void ApplyChanges()
         {
-            if (modified)
+            if (Modified)
             {
                 // Update selection paint operations
                 var operation = iepb_frame.CurrentPaintTool as SelectionPaintTool;
@@ -384,7 +384,7 @@ namespace Pixelaria.Views.ModelViews
         /// </summary>
         private void RefreshTitleBar()
         {
-            Text = @"Frame Editor [" + (FrameLoaded.Index + 1) + @"/" + FrameLoaded.Animation.FrameCount + @"] - [" + FrameLoaded.Animation.Name + @"]" + (modified ? "*" : "");
+            Text = @"Frame Editor [" + (FrameLoaded.Index + 1) + @"/" + FrameLoaded.Animation.FrameCount + @"] - [" + FrameLoaded.Animation.Name + @"]" + (Modified ? "*" : "");
         }
 
         /// <summary>

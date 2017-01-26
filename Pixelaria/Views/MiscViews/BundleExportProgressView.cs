@@ -23,7 +23,6 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
@@ -62,7 +61,7 @@ namespace Pixelaria.Views.MiscViews
         /// <summary>
         /// Timer used to count elapsed time exporting the bundle
         /// </summary>
-        private System.Windows.Forms.Timer _timer;
+        private readonly System.Windows.Forms.Timer _timer;
 
         /// <summary>
         /// Date export began

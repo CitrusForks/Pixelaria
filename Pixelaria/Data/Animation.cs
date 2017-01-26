@@ -39,7 +39,7 @@ namespace Pixelaria.Data
         /// <summary>
         /// The frames of this animation
         /// </summary>
-        private List<IFrame> _frames;
+        private readonly List<IFrame> _frames;
 
         /// <summary>
         /// Gets or sets the name of this animation
@@ -124,17 +124,12 @@ namespace Pixelaria.Data
         /// </summary>
         public void Dispose()
         {
-            if (_frames != null)
+            // Frames clearing
+            foreach (var frame in _frames)
             {
-                // Frames clearing
-                foreach (IFrame frame in _frames)
-                {
-                    frame.Dispose();
-                }
-                _frames.Clear();
+                frame.Dispose();
             }
-
-            _frames = null;
+            _frames.Clear();
         }
 
         /// <summary>
